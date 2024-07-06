@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Link da Live</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .link-container {
+            margin-top: 20px;
+        }
+        .link-container p {
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 id="title">Gerenciador de Link da Live</h1>
+    <div id="updateSection">
+        <input type="text" id="newLink" placeholder="Insira o novo link da live">
+        <button onclick="updateLink()">Atualizar Link</button>
+    </div>
+    
+    <div class="link-container">
+        <h2>Link Fixo</h2>
+        <p id="fixedLink">Carregando...</p>
+        <button onclick="copyLink()">Copiar Link</button>
+    </div>
+</div>
+
+<script>
+    const REPO_OWNER = 'Danielm0nteiro';
+    const REPO_NAME = 'friendly-octo-palm-tree';
+    const FILE_PATH = 'live_link.json';
+    const BRANCH = 'main';
+    const GITHUB_TOKEN = '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';
+
+    function getFileUrl() {
+        return `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+    }
+
+    async function updateLink() {
+        const newLink = document.getElementById('newLink').value;
+        const response = await fetch(getFileUrl(), {
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+
+        const fileData = await response.json();
+        const content = {
+            url: newLink
+        };
+        const base64Content = btoa(JSON.stringify(content, null, 2));
+
+        await fetch(getFileUrl(), {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: 'Atualizar link da live',
+                content: base64Content,
+                sha: fileData.sha,
+                branch: BRANCH
+            })
+        });
+
+        alert('Link atualizado com sucesso!');
+        loadFixedLink();
+    }
+
+    function loadFixedLink() {
+        const fixedLink = `${window.location.origin}${window.location.pathname}?redirect=true`;
+        document.getElementById('fixedLink').textContent = fixedLink;
+    }
+
+    function copyLink() {
+        const fixedLink = document.getElementById('fixedLink').textContent;
+        navigator.clipboard.writeText(fixedLink).then(() => {
+            alert('Link copiado para a área de transferência!');
+        }).catch((error) => {
+            console.error('Erro ao copiar o link: ', error);
+        });
+    }
+
+    async function redirectToLatestLink() {
+        const response = await fetch(getFileUrl(), {
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+
+        const fileData = await response.json();
+        const content = atob(fileData.content);
+        const data = JSON.parse(content);
+        window.location.href = data.url;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('redirect') === 'true') {
+        document.querySelector('.container').style.display = 'none';
+        redirectToLatestLink();
+    } else {
+        loadFixedLink();
+    }
+</script>
+
+</body>
+</html>
